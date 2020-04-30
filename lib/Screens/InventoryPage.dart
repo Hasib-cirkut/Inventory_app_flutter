@@ -10,6 +10,11 @@ class InventoryPage extends StatefulWidget {
 class _InventoryPageState extends State<InventoryPage> {
   int amount = 0;
 
+  List<String> selectedText = ['ADD option selected', 'SELL option selected'];
+  int selectedTextIndex = 0;
+
+  bool addSelected = true;
+
   void handlePillButton(String type) {
     int tempAmount = amount;
 
@@ -107,22 +112,47 @@ class _InventoryPageState extends State<InventoryPage> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: <Widget>[
-                          AddSellButton(
-                            label: 'ADD',
-                            icon: Icons.add,
+                          GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                selectedTextIndex = 0;
+                              });
+                            },
+                            child: AddSellButton(
+                              label: 'ADD',
+                              icon: Icons.add,
+                            ),
                           ),
                           SizedBox(
                             width: 10,
                           ),
-                          AddSellButton(
-                            label: 'SELL',
-                            icon: Icons.close,
+                          GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                selectedTextIndex = 1;
+                              });
+                            },
+                            child: AddSellButton(
+                              label: 'SELL',
+                              icon: Icons.close,
+                            ),
                           )
                         ],
                       ),
                     ),
                     SizedBox(
                       height: 10,
+                    ),
+                    Expanded(
+                      child: Text(
+                        selectedText[selectedTextIndex],
+                        style: TextStyle(
+                            color: selectedTextIndex == 0
+                                ? Colors.green[800]
+                                : Colors.red[600],
+                            fontWeight: FontWeight.bold,
+                            fontSize: 25),
+                      ),
                     ),
                     Expanded(
                       child: Row(
@@ -144,7 +174,10 @@ class _InventoryPageState extends State<InventoryPage> {
                               label: '-1',
                             ),
                           ),
-                          Text('$amount'),
+                          Text(
+                            '$amount',
+                            style: TextStyle(fontSize: 25),
+                          ),
                           GestureDetector(
                             onTap: () {
                               handlePillButton('+1');
