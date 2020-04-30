@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:inventory_flutter/Components/BackgroundGradient.dart';
 import 'package:inventory_flutter/Components/CategoryPill.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class InventoryPage extends StatefulWidget {
   @override
@@ -8,12 +10,43 @@ class InventoryPage extends StatefulWidget {
 }
 
 class _InventoryPageState extends State<InventoryPage> {
+  final _auth = FirebaseAuth.instance;
+  final _fireStore = Firestore.instance;
+  FirebaseUser loggedInUser;
+
   int amount = 0;
 
   List<String> selectedText = ['ADD option selected', 'SELL option selected'];
   int selectedTextIndex = 0;
 
+  String selectedCategory = '';
+  String transactionUser = '';
+  bool showNegativeQuantityError = false;
+
+  int rafeeHas;
+  int uthobHas;
+
   bool addSelected = true;
+
+  void getCurrentUser() async {
+    try {
+      final user = await _auth.currentUser();
+
+      if (user != null) {
+        loggedInUser = user;
+        print(loggedInUser.email);
+      }
+    } catch (e) {
+      print(e);
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+
+    getCurrentUser();
+  }
 
   void handlePillButton(String type) {
     int tempAmount = amount;
@@ -35,6 +68,73 @@ class _InventoryPageState extends State<InventoryPage> {
         amount = tempAmount;
       });
     }
+  }
+
+  void transact(BuildContext context) async {
+    try {
+      if (!addSelected) {
+        amount = amount * -1;
+      }
+
+      if (loggedInUser.email == 'r.nahid111@gmail.com') {
+        int temp = rafeeHas + amount;
+
+        if (temp < 0) {
+          setState(() {
+            showNegativeQuantityError = true;
+            amount = 0;
+            return;
+          });
+        } else {
+          _fireStore
+              .collection('Categories')
+              .document(selectedCategory)
+              .updateData({'rafeeHas': (rafeeHas + amount)});
+          showNegativeQuantityError = false;
+        }
+      } else {
+        int temp = uthobHas + amount;
+
+        if (temp < 0) {
+          setState(() {
+            showNegativeQuantityError = true;
+            amount = 0;
+            return;
+          });
+        } else {
+          _fireStore
+              .collection('Categories')
+              .document(selectedCategory)
+              .updateData({'uthsobHas': uthobHas + amount});
+          showNegativeQuantityError = false;
+        }
+      }
+
+      if (!showNegativeQuantityError) {
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      print(e.toString());
+    }
+  }
+
+  void setSelectedCategory(String selectedCat, int rH, int uH) {
+    setState(() {
+      if (selectedCat == 'Coin Purse') {
+        selectedCategory = 'coin_purse';
+      } else if (selectedCat == 'Music Box') {
+        selectedCategory = 'music_box';
+      } else if (selectedCat == 'Key Ring') {
+        selectedCategory = 'key_ring';
+      } else if (selectedCat == 'Stickers') {
+        selectedCategory = 'sticker';
+      } else if (selectedCat == 'Wallet') {
+        selectedCategory = 'wallet';
+      }
+
+      rafeeHas = rH;
+      uthobHas = uH;
+    });
   }
 
   @override
@@ -72,31 +172,41 @@ class _InventoryPageState extends State<InventoryPage> {
                       bottomLeft: Radius.circular(40),
                     ),
                   ),
-                  child: ListView(
-                    padding:
-                        EdgeInsets.symmetric(vertical: 10).copyWith(right: 40),
-                    scrollDirection: Axis.horizontal,
-                    children: <Widget>[
-                      CategoryPill(
-                        label: 'Key Ring',
-                        rafeeHas: 10,
-                        uthsobHas: 20,
-                        bottomSheet: 'inventory',
-                      ),
-                      CategoryPill(
-                        label: 'Music Box',
-                        rafeeHas: 15,
-                        uthsobHas: 20,
-                        bottomSheet: 'inventory',
-                      ),
-                      CategoryPill(
-                        label: 'Wallet',
-                        rafeeHas: 13,
-                        uthsobHas: 0,
-                        bottomSheet: 'inventory',
-                      ),
-                    ],
+                  child: StreamBuilder<QuerySnapshot>(
+                    stream:
+                        Firestore.instance.collection('Categories').snapshots(),
+                    builder: (context, snapshot) {
+                      if (!snapshot.hasData) {
+                        return Center(
+                          child: CircularProgressIndicator(),
+                        );
+                      } else {
+                        var messageList = snapshot.data.documents;
+
+                        return ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: messageList.length,
+                          itemBuilder: (BuildContext context, int index) {
+                            return CategoryPill(
+                              label: messageList[index]['label'],
+                              rafeeHas: messageList[index]['rafeeHas'],
+                              uthsobHas: messageList[index]['uthsobHas'],
+                              bottomSheet: 'inventory',
+                              ontap: setSelectedCategory,
+                            );
+                          },
+                        );
+                      }
+                    },
                   ),
+                ),
+              ),
+            ),
+            Expanded(
+              child: Center(
+                child: Text(
+                  "$selectedCategory selected",
+                  style: TextStyle(fontSize: 27, color: Colors.black87),
                 ),
               ),
             ),
@@ -116,6 +226,7 @@ class _InventoryPageState extends State<InventoryPage> {
                             onTap: () {
                               setState(() {
                                 selectedTextIndex = 0;
+                                addSelected = true;
                               });
                             },
                             child: AddSellButton(
@@ -130,6 +241,7 @@ class _InventoryPageState extends State<InventoryPage> {
                             onTap: () {
                               setState(() {
                                 selectedTextIndex = 1;
+                                addSelected = false;
                               });
                             },
                             child: AddSellButton(
@@ -202,12 +314,12 @@ class _InventoryPageState extends State<InventoryPage> {
               ),
             ),
             Expanded(
-              flex: 1,
+              flex: 2,
               child: Container(
                 child: Center(
                   child: GestureDetector(
                     onTap: () {
-                      Navigator.pop(context);
+                      transact(context);
                     },
                     child: Container(
                       decoration: BoxDecoration(
@@ -229,6 +341,18 @@ class _InventoryPageState extends State<InventoryPage> {
                   ),
                 ),
               ),
+            ),
+            Expanded(
+              child: showNegativeQuantityError
+                  ? Center(
+                      child: Text(
+                      'Can\'t add negative amount of Items',
+                      style: TextStyle(
+                          fontSize: 20,
+                          color: Colors.red,
+                          fontWeight: FontWeight.bold),
+                    ))
+                  : Text(''),
             )
           ],
         ),

@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:inventory_flutter/Components/BackGroundGradient.dart';
 
@@ -7,6 +8,50 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
+  String email;
+  String password;
+  String errorMessage = '';
+
+  void setErrorMessage(String errorMsg) {
+    setState(() {
+      errorMessage = errorMsg;
+    });
+  }
+
+  void _login() async {
+    try {
+      final user = await FirebaseAuth.instance
+          .signInWithEmailAndPassword(email: email, password: password);
+
+      if (user != null) {
+        Navigator.pushNamed(context, '/main');
+      }
+    } catch (error) {
+      switch (error.code) {
+        case "ERROR_INVALID_EMAIL":
+          setErrorMessage("Your email address appears to be malformed.");
+          break;
+        case "ERROR_WRONG_PASSWORD":
+          setErrorMessage("Your password is wrong.");
+          break;
+        case "ERROR_USER_NOT_FOUND":
+          setErrorMessage("User with this email doesn't exist.");
+          break;
+        case "ERROR_USER_DISABLED":
+          setErrorMessage("User with this email has been disabled.");
+          break;
+        case "ERROR_TOO_MANY_REQUESTS":
+          setErrorMessage("Too many requests. Try again later.");
+          break;
+        case "ERROR_OPERATION_NOT_ALLOWED":
+          setErrorMessage("Signing in with Email and Password is not enabled.");
+          break;
+        default:
+          setErrorMessage("An undefined Error happened.");
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -86,6 +131,9 @@ class _LoginPageState extends State<LoginPage> {
                                 ),
                               ),
                               child: TextField(
+                                onChanged: (value) {
+                                  email = value;
+                                },
                                 keyboardType: TextInputType.emailAddress,
                                 decoration: InputDecoration(
                                   border: InputBorder.none,
@@ -98,6 +146,9 @@ class _LoginPageState extends State<LoginPage> {
                               padding: EdgeInsets.all(10).copyWith(left: 25),
                               decoration: BoxDecoration(),
                               child: TextField(
+                                onChanged: (value) {
+                                  password = value;
+                                },
                                 obscureText: true,
                                 decoration: InputDecoration(
                                     hintText: 'Enter Password',
@@ -119,21 +170,34 @@ class _LoginPageState extends State<LoginPage> {
                       SizedBox(
                         height: 10,
                       ),
-                      Container(
-                        width: MediaQuery.of(context).size.width * .35,
-                        height: 60,
-                        decoration: BoxDecoration(
-                          color: Colors.orange[900],
-                          borderRadius: BorderRadius.circular(50),
-                        ),
-                        child: Center(
-                          child: Text(
-                            'Login',
-                            style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                                fontSize: 17),
+                      GestureDetector(
+                        onTap: () {
+                          _login();
+                        },
+                        child: Container(
+                          width: MediaQuery.of(context).size.width * .35,
+                          height: 60,
+                          decoration: BoxDecoration(
+                            color: Colors.orange[900],
+                            borderRadius: BorderRadius.circular(50),
                           ),
+                          child: Center(
+                            child: Text(
+                              'Login',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                  fontSize: 17),
+                            ),
+                          ),
+                        ),
+                      ),
+                      SizedBox(
+                        height: 20,
+                      ),
+                      Container(
+                        child: Center(
+                          child: Text('$errorMessage'),
                         ),
                       )
                     ],

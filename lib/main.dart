@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:inventory_flutter/Components/BackGroundGradient.dart';
 import 'package:inventory_flutter/Screens/InventoryPage.dart';
@@ -15,8 +17,8 @@ class MyApp extends StatelessWidget {
       title: 'Inventory Management',
       initialRoute: '/',
       routes: {
-        '/': (context) => MainPage(),
-        '/login': (context) => LoginPage(),
+        '/': (context) => LoginPage(),
+        '/main': (context) => MainPage(),
         '/inventory': (context) => InventoryPage()
       },
       theme: ThemeData(
@@ -35,10 +37,48 @@ class MainPage extends StatefulWidget {
 }
 
 class _MainPageState extends State<MainPage> {
+  FirebaseUser loggedInUser;
+  String loggedInUserText;
+
+  void getCurrentUser() async {
+    try {
+      final user = await FirebaseAuth.instance.currentUser();
+
+      if (user != null) {
+        loggedInUser = user;
+
+        setState(() {
+          if (loggedInUser.email == 'r.nahid111@gmail.com') {
+            loggedInUserText = 'Rafee';
+          } else {
+            loggedInUserText = 'Uthsob';
+          }
+        });
+      }
+    } catch (e) {
+      print(e);
+    }
+  }
+
+  void _logout() async {
+    await FirebaseAuth.instance.signOut();
+
+    Navigator.popUntil(
+      context,
+      ModalRoute.withName('/'),
+    );
+  }
+
+  @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+
+    getCurrentUser();
+  }
+
   @override
   Widget build(BuildContext context) {
-    var screenHeight = MediaQuery.of(context).size.height;
-    var screenWidth = MediaQuery.of(context).size.width;
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(gradient: BackgroundGradient),
@@ -53,13 +93,20 @@ class _MainPageState extends State<MainPage> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: <Widget>[
-                    Icon(
-                      Icons.notifications_active,
-                      // color: Colors.white,
+                    IconButton(
+                      icon: Icon(Icons.close),
+                      onPressed: () {
+                        _logout();
+                      },
                     ),
-                    Icon(
-                      Icons.search,
-                      //color: Colors.white,
+                    Row(
+                      children: <Widget>[
+                        Icon(Icons.person),
+                        Text(
+                          '$loggedInUserText',
+                          style: TextStyle(fontSize: 20, color: Colors.black),
+                        ),
+                      ],
                     )
                   ],
                 ),
@@ -86,30 +133,31 @@ class _MainPageState extends State<MainPage> {
                       bottomLeft: Radius.circular(40),
                     ),
                   ),
-                  child: ListView(
-                    padding:
-                        EdgeInsets.symmetric(vertical: 10).copyWith(right: 40),
-                    scrollDirection: Axis.horizontal,
-                    children: <Widget>[
-                      CategoryPill(
-                        label: 'Key Ring',
-                        rafeeHas: 10,
-                        uthsobHas: 20,
-                        bottomSheet: 'main',
-                      ),
-                      CategoryPill(
-                        label: 'Music Box',
-                        rafeeHas: 15,
-                        uthsobHas: 20,
-                        bottomSheet: 'main',
-                      ),
-                      CategoryPill(
-                        label: 'Wallet',
-                        rafeeHas: 13,
-                        uthsobHas: 0,
-                        bottomSheet: 'main',
-                      ),
-                    ],
+                  child: StreamBuilder<QuerySnapshot>(
+                    stream:
+                        Firestore.instance.collection('Categories').snapshots(),
+                    builder: (context, snapshot) {
+                      if (!snapshot.hasData) {
+                        return Center(
+                          child: CircularProgressIndicator(),
+                        );
+                      } else {
+                        var messageList = snapshot.data.documents;
+
+                        return ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: messageList.length,
+                          itemBuilder: (BuildContext context, int index) {
+                            return CategoryPill(
+                              label: messageList[index]['label'],
+                              rafeeHas: messageList[index]['rafeeHas'],
+                              uthsobHas: messageList[index]['uthsobHas'],
+                              bottomSheet: 'main',
+                            );
+                          },
+                        );
+                      }
+                    },
                   ),
                 ),
               ),
